@@ -1,4 +1,4 @@
-import { Button, Col, Menu, Row } from "antd";
+import { Button, Col, Menu, Row, Card } from "antd";
 
 import "antd/dist/antd.css";
 import {
@@ -24,6 +24,8 @@ import {
   NetworkDisplay,
   FaucetHint,
   NetworkSwitch,
+  Balance,
+  Address,
 } from "./components";
 import { NETWORKS, ALCHEMY_KEY } from "./constants";
 import externalContracts from "./contracts/external_contracts";
@@ -32,6 +34,8 @@ import deployedContracts from "./contracts/hardhat_contracts.json";
 import { getRPCPollTime, Transactor, Web3ModalSetup } from "./helpers";
 import { Home, ExampleUI, Hints, Subgraph } from "./views";
 import { useStaticJsonRPC } from "./hooks";
+import mancity from "../src/man-city.png";
+import manutd from "../src/man-utd.png";
 
 const { ethers } = require("ethers");
 /*
@@ -54,7 +58,7 @@ const { ethers } = require("ethers");
 */
 
 /// 📡 What chain are your contracts deployed to?
-const initialNetwork = NETWORKS.localhost; // <------- select your target frontend network (localhost, goerli, xdai, mainnet)
+const initialNetwork = NETWORKS.goerli; // <------- select your target frontend network (localhost, goerli, xdai, mainnet)
 
 // 😬 Sorry for all the console logging
 const DEBUG = true;
@@ -254,6 +258,28 @@ function App(props) {
 
   const faucetAvailable = localProvider && localProvider.connection && targetNetwork.name.indexOf("local") !== -1;
 
+  const complete = useContractReader(readContracts, "YourContract", "completed");
+  console.log("✅ complete:", complete);
+
+  const yourContractBalance = useBalance(
+    localProvider,
+    readContracts && readContracts.YourContract ? readContracts.YourContract.address : null,
+  );
+  if (DEBUG) console.log("💵 yourContractBalance", yourContractBalance);
+
+  let completeDisplay = "";
+  if (complete) {
+    completeDisplay = (
+      <div style={{ padding: 64, backgroundColor: "#eeffef", fontWeight: "bolder", color: "rgba(0, 0, 0, 0.85)" }}>
+        🚀 🎖 👩‍🚀 -- Staking App triggered `ExampleExternalContract` -- 🎉 🍾 🎊
+        <Balance balance={yourContractBalance} fontSize={64} /> ETH staked!
+      </div>
+    );
+  }
+
+  const balanceBet = useContractReader(readContracts, "YourContract", "balances", [address]);
+  console.log("💸 balanceBet:", balanceBet);
+
   return (
     <div className="App">
       {/* ✏️ Edit the header and change the title to your project name */}
@@ -303,23 +329,43 @@ function App(props) {
         <Menu.Item key="/debug">
           <Link to="/debug">Debug Contracts</Link>
         </Menu.Item>
-        <Menu.Item key="/hints">
-          <Link to="/hints">Hints</Link>
-        </Menu.Item>
-        <Menu.Item key="/exampleui">
-          <Link to="/exampleui">ExampleUI</Link>
-        </Menu.Item>
-        <Menu.Item key="/mainnetdai">
-          <Link to="/mainnetdai">Mainnet DAI</Link>
-        </Menu.Item>
-        <Menu.Item key="/subgraph">
-          <Link to="/subgraph">Subgraph</Link>
-        </Menu.Item>
       </Menu>
 
       <Switch>
         <Route exact path="/">
-          {/* pass in any web3 props to this Home component. For example, yourLocalBalance */}
+          {completeDisplay}
+          <div style={{ padding: 8, marginTop: 32 }}>
+            MATCHDAY 1
+            <Row span={24}>
+              <Col span={12}>
+                <Card>MANCHESTER CITY</Card>
+                <Card>
+                  <br />
+                  <img src={mancity} height="150 px"></img>
+                  <br />
+                  <br />
+                  <Button>_teamId = 0</Button>
+                  <br />
+                  <br />
+                  <br />
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card>MANCHESTER UNITED</Card>
+                <Card>
+                  <br />
+                  <img src={manutd} height="155 px"></img>
+                  <br />
+                  <br />
+                  <Button>_teamId = 1</Button>
+                  <br />
+                  <br />
+                  <br />
+                </Card>
+              </Col>
+            </Row>
+          </div>
+
           <Home yourLocalBalance={yourLocalBalance} readContracts={readContracts} />
         </Route>
         <Route exact path="/debug">
@@ -339,58 +385,6 @@ function App(props) {
             contractConfig={contractConfig}
           />
         </Route>
-        <Route path="/hints">
-          <Hints
-            address={address}
-            yourLocalBalance={yourLocalBalance}
-            mainnetProvider={mainnetProvider}
-            price={price}
-          />
-        </Route>
-        <Route path="/exampleui">
-          <ExampleUI
-            address={address}
-            userSigner={userSigner}
-            mainnetProvider={mainnetProvider}
-            localProvider={localProvider}
-            yourLocalBalance={yourLocalBalance}
-            price={price}
-            tx={tx}
-            writeContracts={writeContracts}
-            readContracts={readContracts}
-            purpose={purpose}
-          />
-        </Route>
-        <Route path="/mainnetdai">
-          <Contract
-            name="DAI"
-            customContract={mainnetContracts && mainnetContracts.contracts && mainnetContracts.contracts.DAI}
-            signer={userSigner}
-            provider={mainnetProvider}
-            address={address}
-            blockExplorer="https://etherscan.io/"
-            contractConfig={contractConfig}
-            chainId={1}
-          />
-          {/*
-            <Contract
-              name="UNI"
-              customContract={mainnetContracts && mainnetContracts.contracts && mainnetContracts.contracts.UNI}
-              signer={userSigner}
-              provider={mainnetProvider}
-              address={address}
-              blockExplorer="https://etherscan.io/"
-            />
-            */}
-        </Route>
-        <Route path="/subgraph">
-          <Subgraph
-            subgraphUri={props.subgraphUri}
-            tx={tx}
-            writeContracts={writeContracts}
-            mainnetProvider={mainnetProvider}
-          />
-        </Route>
       </Switch>
 
       <ThemeSwitch />
@@ -401,28 +395,9 @@ function App(props) {
           <Col span={8}>
             <Ramp price={price} address={address} networks={NETWORKS} />
           </Col>
-
-          <Col span={8} style={{ textAlign: "center", opacity: 0.8 }}>
-            <GasGauge gasPrice={gasPrice} />
-          </Col>
-          <Col span={8} style={{ textAlign: "center", opacity: 1 }}>
-            <Button
-              onClick={() => {
-                window.open("https://t.me/joinchat/KByvmRe5wkR-8F_zz6AjpA");
-              }}
-              size="large"
-              shape="round"
-            >
-              <span style={{ marginRight: 8 }} role="img" aria-label="support">
-                💬
-              </span>
-              Support
-            </Button>
-          </Col>
         </Row>
-
         <Row align="middle" gutter={[4, 4]}>
-          <Col span={24}>
+          <Col span={15}>
             {
               /*  if the local provider has a signer, let's show the faucet:  */
               faucetAvailable ? (
